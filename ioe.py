@@ -1,9 +1,11 @@
 import keyboard
 import pyautogui
 import pytesseract
-import ollama
+import openai
+import os
 from typing import Dict, Tuple
 
+openai.api_key = os.getenv("OPENAI_API_KEY")
 # Configure Tesseract path
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
@@ -23,19 +25,24 @@ def click_button(button: int) -> None:
     x, y = BUTTON_COORDS[button]
     pyautogui.click(int(screen_width * x), int(screen_height * y))
 
-def ollama_answer(question_and_answers: str) -> int:
-    """Send the question to Ollama and return the answer."""
+def openai_answer(question_and_answers: str) -> int:
+    """Send the question to OpenAI's GPT and return the answer as a button number (1, 2, 3, or 4)."""
     try:
-        response = ollama.generate(
-            model="llama3.2",
-            prompt=f"System: You are a highly focused assistant designed exclusively to answer multiple-choice questions. Your task is to analyze the question and the provided answer options, then respond only with the button number (1, 2, 3, or 4) that corresponds to the most likely correct answer. Do not include any additional text, explanations, or commentary in your response. If you are unsure of the answer, make an educated guess and still respond with only the button number. Your response must always be a single integer between 1 and 4.\n\nQuestion: {question_and_answers}"
+        response = openai.ChatCompletion.create(
+            model="gpt-4",  # Use "gpt-3.5-turbo" if GPT-4 isn't available
+            messages=[
+                {"role": "system", "content": "You are a highly focused assistant designed exclusively to answer multiple-choice questions. Your task is to analyze the question and the provided answer options, then respond only with the button number (1, 2, 3, or 4) that corresponds to the most likely correct answer. Do not include any additional text, explanations, or commentary in your response. If you are unsure of the answer, make an educated guess and still respond with only the button number. Your response must always be a single integer between 1 and 4."},
+                {"role": "user", "content": f"Question: {question_and_answers}"}
+            ],
+            temperature=0.0,  # Avoid creativity for this task
+            max_tokens=10,  # Limit to a short response (just the button number)
         )
-        reply = response.get("response", "").strip()
-        if not reply:
-            raise ValueError("Empty response from Ollama")
+        reply = response['choices'][0]['message']['content'].strip()
+        if not reply.isdigit() or int(reply) not in [1, 2, 3, 4]:
+            raise ValueError(f"Invalid response: {reply}")
         return int(reply)
     except Exception as e:
-        print(f"Error with Ollama: {e}")
+        print(f"Error with OpenAI: {e}")
         return None
 
 def reconstruct_question(question: str, options: Dict[str, str]) -> str:
@@ -50,7 +57,7 @@ def capture_text(region: Dict[str, Tuple[int, int]]) -> str:
     screenshot = pyautogui.screenshot(region=(x1, y1, x2 - x1, y2 - y1))
     return pytesseract.image_to_string(screenshot).strip()
 
-def kahoot_god() -> None:
+def main() -> None:
     """Main function to extract question, get answer, and click the button."""
     question, options = "", {}
     for element, coords in REGIONS.items():
@@ -72,6 +79,6 @@ def kahoot_god() -> None:
         print("Failed to extract question or options.")
 
 # Bind the function to a hotkey
-keyboard.add_hotkey("ctrl+alt+t", kahoot_god)
+keyboard.add_hotkey("ctrl+alt+t", main)
 print("Press Ctrl+Alt+T to trigger the function.")
 keyboard.wait()
