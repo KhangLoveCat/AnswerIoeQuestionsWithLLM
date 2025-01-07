@@ -1,4 +1,4 @@
 # TODO:
-    +Improve the gui to select the zone
-    +Improve the latency of the ai
-    
+    + Make a gui to select the regions of question and answers
+# Feature:
+    + Only support ABCD questions
