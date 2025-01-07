@@ -1,2 +1,4 @@
-# AnswerIoeQuestionsWithLLM
-The name says all about this project
+# TODO:
+    +Improve the gui to select the zone
+    +Improve the latency of the ai
+    
