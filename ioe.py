@@ -1,16 +1,14 @@
 import keyboard
 import pyautogui
 import pytesseract
-import openai
+import google.generativeai as genai
 import os
 from typing import Dict, Tuple
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
-# Configure Tesseract path
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+# Set up API key for Gemini (Google's Generative AI)
+genai.configure(api_key="YOUR_API_KEY")
 
 # Constants
-BUTTON_COORDS = {1: (0.23, 0.65), 2: (0.77, 0.65), 3: (0.20, 0.80), 4: (0.87, 0.80)}
 REGIONS = {
     "question": {"top_left": (1749, 723), "bottom_right": (3017, 836)},
     "A": {"top_left": (1658, 995), "bottom_right": (2344, 1104)},
@@ -19,30 +17,19 @@ REGIONS = {
     "D": {"top_left": (2437, 1131), "bottom_right": (3124, 1239)},
 }
 
-def click_button(button: int) -> None:
-    """Click the specified button based on its coordinates."""
-    screen_width, screen_height = pyautogui.size()
-    x, y = BUTTON_COORDS[button]
-    pyautogui.click(int(screen_width * x), int(screen_height * y))
 
-def openai_answer(question_and_answers: str) -> int:
-    """Send the question to OpenAI's GPT and return the answer as a button number (1, 2, 3, or 4)."""
+def gemini_answer(question_and_answers: str) -> int:
+    """Send the question to Gemini (Google's generative AI) and return the answer as a button number (1, 2, 3, or 4)."""
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4",  # Use "gpt-3.5-turbo" if GPT-4 isn't available
-            messages=[
-                {"role": "system", "content": "You are a highly focused assistant designed exclusively to answer multiple-choice questions. Your task is to analyze the question and the provided answer options, then respond only with the button number (1, 2, 3, or 4) that corresponds to the most likely correct answer. Do not include any additional text, explanations, or commentary in your response. If you are unsure of the answer, make an educated guess and still respond with only the button number. Your response must always be a single integer between 1 and 4."},
-                {"role": "user", "content": f"Question: {question_and_answers}"}
-            ],
-            temperature=0.0,  # Avoid creativity for this task
-            max_tokens=10,  # Limit to a short response (just the button number)
+        response = genai.GenerativeModel("gemini-1.5-flash").generate_content(
+            prompt=f"You are a highly focused assistant designed exclusively to answer multiple-choice questions. Your task is to analyze the question and the provided answer options, then respond only with the button number (1, 2, 3, or 4) that corresponds to the most likely correct answer. Do not include any additional text, explanations, or commentary in your response. If you are unsure of the answer, make an educated guess and still respond with only the button number. Your response must always be a single integer between 1 and 4.\n\nQuestion: {question_and_answers}"
         )
-        reply = response['choices'][0]['message']['content'].strip()
+        reply = response.text.strip()
         if not reply.isdigit() or int(reply) not in [1, 2, 3, 4]:
             raise ValueError(f"Invalid response: {reply}")
         return int(reply)
     except Exception as e:
-        print(f"Error with OpenAI: {e}")
+        print(f"Error with Gemini: {e}")
         return None
 
 def reconstruct_question(question: str, options: Dict[str, str]) -> str:
@@ -70,11 +57,11 @@ def main() -> None:
 
     if question and options:
         full_question = reconstruct_question(question, options)
-        answer = ollama_answer(full_question)
+        answer = gemini_answer(full_question)
         if answer:
-            click_button(answer)
+            print(answer)
         else:
-            print("No answer received from Ollama.")
+            print("No answer received from Gemini.")
     else:
         print("Failed to extract question or options.")
 
